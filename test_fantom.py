@@ -31,15 +31,6 @@ stream_handler.setLevel(logging.WARNING)
 fantom_logger.addHandler(stream_handler)
 
 
-def test(data, game_state):
-    print("DATA -----\n")
-    print(data)
-    print("-----\n")
-    print("GAME State -----\n")
-    print(game_state)
-    print("-----\n")
-
-
 class Player():
 
     def __init__(self):
@@ -58,7 +49,7 @@ class Player():
         # work
         data = question["data"]
         game_state = question["game state"]
-        test(data, game_state)
+        print_game_info(data, game_state)
         response_index = random.randint(0, len(data)-1)
         # log
         fantom_logger.debug("|\n|")
@@ -87,6 +78,100 @@ class Player():
             else:
                 print("no message, finished learning")
                 self.end = True
+
+
+def print_game_info(data, game_state):
+    print("DATA -----\n")
+    print(data)
+    print("-----\n")
+    print("GAME State -----\n")
+    print(game_state)
+    print("-----\n")
+    print(calculate_score(game_state))
+
+
+def get_current_score_from_game_state(game_state):
+    return game_state["position_carlotta"]
+
+
+def get_shadow_from_game_state(game_state):
+    return game_state["shadow"]
+
+
+def get_blocked_from_game_state(game_state):
+    return game_state["blocked"]
+
+
+def get_fantom_from_game_state(game_state):
+    return game_state["fantom"]
+
+
+def get_characters_from_game_state(game_state):
+    return game_state["characters"]
+
+
+def get_suspects_from_game_state(game_state):
+    suspects = []
+
+    for character in game_state["characters"]:
+        if character["suspect"]:
+            suspects.append(character)
+    return suspects
+
+
+def get_active_characters_from_game_state(game_state):
+    return game_state["active character_cards"]
+
+
+def get_character_by_color(game_state, color):
+    target = {}
+    for character in get_characters_from_game_state(game_state):
+        if character["color"] == color:
+            target = character
+            break
+    return target
+
+
+def get_characters_by_position(game_state, position):
+    targets = []
+    for character in get_characters_from_game_state(game_state):
+        if character["position"] == position:
+            targets.append(character)
+    return targets
+
+
+def is_character_alone(game_state, color):
+    character = get_character_by_color(game_state, color)
+    nb = len(get_characters_by_position(game_state, character["position"]))
+
+    return True if nb == 1 else False
+
+
+def calculate_score(game_state):
+    score = get_current_score_from_game_state(game_state)
+    fantom = get_character_by_color(game_state, get_fantom_from_game_state(game_state))
+    suspects = get_suspects_from_game_state(game_state)
+    fantom_is_alone = is_character_alone(game_state, fantom["color"])
+
+    if fantom["position"] == get_shadow_from_game_state(game_state) or fantom_is_alone:
+        # Fantom alone or in the shadow / The Fantom shouts (score +1)
+        score += 1
+        for suspect in suspects:
+            if is_character_alone(game_state, suspect["color"]):
+                # Suspect alone (score +1)
+                score += 1
+                continue
+            if suspect["position"] == get_shadow_from_game_state(game_state):
+                # Suspect in the shadow (score +1)
+                score += 1
+    else:
+        # Fantom in a group
+        for suspect in suspects:
+            if not is_character_alone(game_state, suspect["color"]) and not suspect["position"] == get_shadow_from_game_state(game_state):
+                # Suspect not alone and not in the shadow / in a group (score +1)
+                score += 1
+
+    return score
 
 
 p = Player()
