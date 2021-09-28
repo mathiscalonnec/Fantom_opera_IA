@@ -101,6 +101,18 @@ def is_character_alone(game_state, color):
 
     return True if nb == 1 else False
 
+def get_suspects_alone_or_shadow(game_state):
+    character = get_suspects_from_game_state(game_state)
+    char_alone = []
+    shadow = get_shadow_from_game_state(game_state)
+
+    for element in character:
+        if is_character_alone(game_state, element["color"]):
+            char_alone.append(element)
+        elif (element["position"] == shadow):
+            char_alone.append(element)
+
+    return(char_alone)
 
 def is_character_in_shadow(game_state, color):
     character = get_character_by_color(game_state, color)
