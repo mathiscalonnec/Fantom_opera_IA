@@ -4,9 +4,7 @@
 # NOTE: match state obtained with adversary plays against nodes of the tree to find where to play next
 
 from random import random
-from bernes_src.Node import Node
-from bernes_src.GameReplica import Game
-from bernes_src.PlayerReplica import Player
+from test_src.Node import Node
 from copy import deepcopy
 
 class Agent:
@@ -17,17 +15,12 @@ class Agent:
     """
     current_node: Node
     end_nodes: list
-    game: Game
-    player: Player
     depth: int
 
-    def __init__(self):
-        self.player = Player(1)
 
     def __reset(self, game_state):
         self.depth = 0
         self.current_node = Node(0, 6, game_state)
-        self.game = Game(self.player, game_state)
 
 
     def __backpropagate(self): # 
