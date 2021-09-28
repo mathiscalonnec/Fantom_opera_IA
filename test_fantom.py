@@ -42,7 +42,7 @@ def print_game_info(data, game_state):
     print(calculate_score(game_state))
     print("-----\n")
     print("Update Game_State Suspects -----\n")
-    print(update_game_state_suspects(game_state))
+    print(get_suspects_from_game_state(update_game_state_suspects(game_state)))
     print("-----\n")
 
 
@@ -167,6 +167,33 @@ def update_game_state_suspects(game_state):
     return game_state
 
 
+def predict_turn(game_state, depth, predictions):
+    # TODO fix depth
+    predictions.append({"depth": depth, "data": {"color": "", "position": 0, "power": False, "power_action": 0}})
+    if depth > 0:
+        predict_turn(game_state.copy(), depth - 1, predictions)
+        print("depth ", depth)
+
+
+def play_turn(game_state, turn_answer):
+    depth = 0
+    depth = len(game_state["active character_cards"]) - 1
+    predictions = []
+
+    predict_turn(game_state, depth, predictions)
+
+    print("predictions ", predictions)
+
+    # TODO select best score
+    # answer = best answer from list
+    # turn_answer["color"] = ...
+    # turn_answer["position"] = ...
+    # turn_answer["power"] = ...
+    # turn_answer["power_action"] = ...
+
+    return turn_answer
+
+
 class Player():
 
     def __init__(self):
@@ -181,11 +208,28 @@ class Player():
     def reset(self):
         self.socket.close()
 
-    def answer(self, question):
+    def answer(self, question, turn_answer):
         # work
         data = question["data"]
         game_state = question["game state"]
         print_game_info(data, game_state)
+        response_index = 0
+
+        if question["question type"] == "select character":
+            turn_answer = play_turn(game_state, turn_answer)
+            turn_answer["color"] = data[random.randint(0, len(data)-1)]["color"]
+            for character in data:
+                if character["color"] == turn_answer["color"]:
+                    response_index = data.index(character)
+                    break
+        elif question["question type"] == "select position":
+            turn_answer["position"] = data[random.randint(0, len(data)-1)]
+            response_index = data.index(turn_answer["position"])
+        else:
+            # TODO Need to add specific question for power
+            response_index = 1 if turn_answer["power"] else 0
+
+        print(turn_answer, response_index)
         response_index = random.randint(0, len(data)-1)
         # log
         fantom_logger.debug("|\n|")
@@ -196,9 +240,9 @@ class Player():
         fantom_logger.debug(f"response ---------- {data[response_index]}")
         return response_index
 
-    def handle_json(self, data):
+    def handle_json(self, data, turn_answer):
         data = json.loads(data)
-        response = self.answer(data)
+        response = self.answer(data, turn_answer)
         # send back to server
         bytes_data = json.dumps(response).encode("utf-8")
         protocol.send_json(self.socket, bytes_data)
@@ -207,10 +251,12 @@ class Player():
 
         self.connect()
 
+        turn_answer = {"color": "", "position": 0, "power": False, "power_action": 0}
+
         while self.end is not True:
             received_message = protocol.receive_json(self.socket)
             if received_message:
-                self.handle_json(received_message)
+                self.handle_json(received_message, turn_answer)
             else:
                 print("no message, finished learning")
                 self.end = True
