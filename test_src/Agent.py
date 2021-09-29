@@ -4,23 +4,27 @@
 # NOTE: match state obtained with adversary plays against nodes of the tree to find where to play next
 
 from random import random
+from test_src import Actions
 from test_src.Node import Node
 from copy import deepcopy
+from test_src.Actions import actions
 
 class Agent:
     """
-        Agent working with tree strategy (max on every node for fantom)
-        Last nodes: needs to be the one with the max stress
-        Minimax on stress levels
+        TODO:
+         - Character powers (for now, always deactivated)
+         - Take into account inspector turns -> tree longer than for one turn
     """
     current_node: Node
     end_nodes: list
     depth: int
 
+    actions: Actions
 
-    def __reset(self, game_state):
+    def __init__(self, game_state):
         self.depth = 0
         self.current_node = Node(0, 6, game_state)
+        self.actions = Actions()
 
 
     def __backpropagate(self): # 
@@ -30,22 +34,21 @@ class Agent:
             if best_val < self.end_nodes[i].value:
                 best_val = self.end_nodes[i].value
                 index = i
-        print('-------------- BEST VALUE', best_val)
         parent = self.end_nodes[index].parent
         while parent.parent is not None:
             parent.value = best_val
             parent = parent.parent
 
 
-    def __expand(self, game, node):
+    def __expand(self, game_state, node):
         self.depth += 1
-        possible_actions = game.get_next_possible_actions()
+        possible_actions = self.actions.get_select_possible_actions(game_state)
         for i in range(len(possible_actions)):
-            new_game = deepcopy(game)
-            new_game_state = game.answer(i)
-            node.children.append(Node(self.depth, new_game_state.position_carlotta, new_game_state))
-            if self.player.turn_end() is not True:
-                self.__expand(new_game, node.children[-1])
+            new_state = self.actions.execute_select(game_state, possible_actions[i])
+            node.children.append(Node(self.depth, new_state["position_carlotta"], new_state))
+            print(node)
+            # if self.player.turn_end() is not True:
+            #     self.__expand(new_game, node.children[-1])
 
 
     def __get_next_solution(self):

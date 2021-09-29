@@ -7,6 +7,8 @@ from logging.handlers import RotatingFileHandler
 
 import protocol
 
+from test_src.Agent import Agent
+
 host = "localhost"
 port = 12000
 # HEADERSIZE = 10
@@ -201,12 +203,14 @@ class Player():
         self.end = False
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.agent = Agent()
 
     def connect(self):
         self.socket.connect((host, port))
 
     def reset(self):
         self.socket.close()
+
 
     def answer(self, question, turn_answer):
         # work
@@ -215,21 +219,23 @@ class Player():
         print_game_info(data, game_state)
         response_index = 0
 
-        if question["question type"] == "select character":
-            turn_answer = play_turn(game_state, turn_answer)
-            turn_answer["color"] = data[random.randint(0, len(data)-1)]["color"]
-            for character in data:
-                if character["color"] == turn_answer["color"]:
-                    response_index = data.index(character)
-                    break
-        elif question["question type"] == "select position":
-            turn_answer["position"] = data[random.randint(0, len(data)-1)]
-            response_index = data.index(turn_answer["position"])
-        else:
-            # TODO Need to add specific question for power
-            response_index = 1 if turn_answer["power"] else 0
-
-        print(turn_answer, response_index)
+        # if question["question type"] == "select character":
+        #     turn_answer = play_turn(game_state, turn_answer)
+        #     turn_answer["color"] = data[random.randint(0, len(data)-1)]["color"]
+        #     for character in data:
+        #         if character["color"] == turn_answer["color"]:
+        #             response_index = data.index(character)
+        #             break
+        # elif question["question type"] == "select position":
+        #     turn_answer["position"] = data[random.randint(0, len(data)-1)]
+        #     response_index = data.index(turn_answer["position"])
+        # else:
+        #     # TODO Need to add specific question for power
+        #     response_index = 1 if turn_answer["power"] else 0
+# 
+        # print(turn_answer, response_index)
+        print(question)
+        # self.agent.play(question)
         response_index = random.randint(0, len(data)-1)
         # log
         fantom_logger.debug("|\n|")
@@ -255,6 +261,7 @@ class Player():
 
         while self.end is not True:
             received_message = protocol.receive_json(self.socket)
+            print(received_message)
             if received_message:
                 self.handle_json(received_message, turn_answer)
             else:
