@@ -1,5 +1,6 @@
 from test_src.globals import passages, pink_passages, colors
 
+
 def get_current_score_from_game_state(game_state):
     return game_state["position_carlotta"]
 
@@ -53,9 +54,6 @@ def get_characters_by_position(game_state, position):
             targets.append(character)
     return targets
 
-
-# TODO: if move doesn't work properly 
-# def get_character_game_state_index()
 
 # Took two next funcs from base src
 def get_adjacent_positions_from_position(position, charact, game_state):
