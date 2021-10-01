@@ -4,12 +4,17 @@ import os
 import random
 import socket
 from logging.handlers import RotatingFileHandler
+from typing import List
 
 import protocol
 
 host = "localhost"
 port = 12000
 # HEADERSIZE = 10
+passages = [{1, 4}, {0, 2}, {1, 3}, {2, 7}, {0, 5, 8},
+            {4, 6}, {5, 7}, {3, 6, 9}, {4, 9}, {7, 8}]
+
+character_using_direction = 0
 
 """
 set up inspector logging
@@ -37,13 +42,9 @@ def print_game_info(data, game_state):
     print("GAME State -----\n")
     print(game_state)
     print("-----\n")
-    print("Score at current Game_State -----\n")
-    print(calculate_score(game_state))
-    print("-----\n")
     print("Update Game_State Suspects -----\n")
     print(get_suspects_from_game_state(update_game_state_suspects(game_state)))
     print("-----\n")
-
 
 def get_current_score_from_game_state(game_state):
     return game_state["position_carlotta"]
@@ -101,6 +102,10 @@ def is_character_alone(game_state, color):
 
     return True if nb == 1 else False
 
+def get_number_of_suspects_from_game_state(game_state):
+    return(len(get_suspects_from_game_state(game_state)))
+
+
 def get_suspects_alone_or_shadow(game_state):
     character = get_suspects_from_game_state(game_state)
     char_alone = []
@@ -119,33 +124,6 @@ def is_character_in_shadow(game_state, color):
 
     return character["position"] == get_shadow_from_game_state(game_state)
 
-
-def calculate_score(game_state):
-    score = get_current_score_from_game_state(game_state)
-    fantom = get_character_by_color(game_state, get_fantom_from_game_state(game_state))
-    suspects = get_suspects_from_game_state(game_state)
-    fantom_is_alone = is_character_alone(game_state, fantom["color"])
-
-    if fantom["position"] == get_shadow_from_game_state(game_state) or fantom_is_alone:
-        # Fantom is alone or in the shadow / The Fantom shouts (score +1)
-        score += 1
-        for suspect in suspects:
-            if is_character_alone(game_state, suspect["color"]):
-                # Suspect alone (score +1)
-                score += 1
-                continue
-            if is_character_in_shadow(game_state, suspect["color"]):
-                # Suspect in the shadow (score +1)
-                score += 1
-    else:
-        # Fantom in a group
-        for suspect in suspects:
-            if not is_character_alone(game_state, suspect["color"]) \
-                    and not is_character_in_shadow(game_state, suspect["color"]):
-                # Suspect is not alone and not in the shadow / in a group (score +1)
-                score += 1
-
-    return score
 
 
 def update_game_state_suspects(game_state):
@@ -204,6 +182,74 @@ def play_turn(game_state, turn_answer):
 
     return turn_answer
 
+class Game_inspector:
+    game_state: list
+    new_game_state: list
+    score: int
+    characters: list
+    character_using_index: int    
+    character_using_direction: int
+    blocked: list
+
+    def __init__(self, game_state, characters):
+        self.game_state = game_state
+        self.score = self.calculate_score(game_state)
+        self.new_game_state = game_state
+        self.characters = characters
+        self.character_using_index = None
+        self.character_using_direction = None
+        self.blocked = game_state["blocked"]
+
+    def calculate_score(self, game_state):
+        number_of_suspects = get_number_of_suspects_from_game_state(game_state)
+        number_of_suspects_alone = len(get_suspects_alone_or_shadow(game_state))
+        number_of_suspects_in_group = number_of_suspects - number_of_suspects_alone
+        score = abs(number_of_suspects_in_group - number_of_suspects_alone)
+        #the goal for the inspector is to have a score near zero
+        return (score)
+
+    def find_best_score(self, index_char, character):
+        position_in_game_state = self.game_state["characters"].index(character)
+        position = character["position"]
+        game_state_tmp = self.game_state
+
+        print(self.game_state)
+        print(self.characters)
+        print(character)
+        print(position_in_game_state)
+        print(position)
+        print(passages[position])
+
+        for element in passages[position]:
+            game_state_tmp["characters"][position_in_game_state]["position"] = element
+            new_score = self.calculate_score(game_state_tmp)
+            if ((element in self.blocked) == False):
+                if(self.character_using_direction == None):
+                    self.score = new_score
+                    self.character_using_index = index_char
+                    self.character_using_direction = element
+                if new_score == self.score:
+                    self.score = new_score
+                    self.character_using_index = index_char
+                    self.character_using_direction = element
+                    print("------")
+                    print("inside index : ", self.character_using_index)
+                    print("inside direction: ", self.character_using_direction)
+                    print("score : ", self.score)
+                    if self.score == 0:
+                      break
+
+
+    def chose_character(self):
+        for element in self.characters:
+            self.characters.index(element)
+            self.find_best_score(self.characters.index(element), element)
+            if self.score == 0:
+                break
+
+    def run(self):
+        self.chose_character()
+
 
 class Player():
 
@@ -223,28 +269,33 @@ class Player():
         # work
         data = question["data"]
         game_state = question["game state"]
-        print_game_info(data, game_state)
+        # print_game_info(data, game_state)
         response_index = 0
+        inspector = Game_inspector(game_state, data)
 
         if question["question type"] == "select character":
-            turn_answer = play_turn(game_state, turn_answer)
-            turn_answer["color"] = data[random.randint(0, len(data)-1)]["color"]
-            for character in data:
-                if character["color"] == turn_answer["color"]:
-                    response_index = data.index(character)
-                    break
+            inspector.run()
+            print("blocked : ", inspector.blocked)
+            response_index = inspector.character_using_index
+            global character_using_direction
+            character_using_direction = inspector.character_using_direction
+            print("###################################")
+            print(inspector.characters)
+            print("index : ", inspector.character_using_index)
+            print("direction : ", inspector.character_using_direction)
+
         elif question["question type"] == "select position":
-            turn_answer["position"] = data[random.randint(0, len(data)-1)]
-            response_index = data.index(turn_answer["position"])
+            print(data)
+            print("###################################")
+            response_index = data.index(character_using_direction)
+
         else:
             # TODO Need to add specific question for power
             response_index = 1 if turn_answer["power"] else 0
 
-        print(turn_answer, response_index)
-        response_index = random.randint(0, len(data)-1)
         # log
         inspector_logger.debug("|\n|")
-        inspector_logger.debug("fantom answers")
+        inspector_logger.debug("inspector answers")
         inspector_logger.debug(f"question type ----- {question['question type']}")
         inspector_logger.debug(f"data -------------- {data}")
         inspector_logger.debug(f"response index ---- {response_index}")
