@@ -213,13 +213,6 @@ class Game_inspector:
         position = character["position"]
         game_state_tmp = self.game_state
 
-        print(self.game_state)
-        print(self.characters)
-        print(character)
-        print(position_in_game_state)
-        print(position)
-        print(passages[position])
-
         for element in passages[position]:
             game_state_tmp["characters"][position_in_game_state]["position"] = element
             new_score = self.calculate_score(game_state_tmp)
@@ -232,10 +225,6 @@ class Game_inspector:
                     self.score = new_score
                     self.character_using_index = index_char
                     self.character_using_direction = element
-                    print("------")
-                    print("inside index : ", self.character_using_index)
-                    print("inside direction: ", self.character_using_direction)
-                    print("score : ", self.score)
                     if self.score == 0:
                       break
 
@@ -275,18 +264,11 @@ class Player():
 
         if question["question type"] == "select character":
             inspector.run()
-            print("blocked : ", inspector.blocked)
             response_index = inspector.character_using_index
             global character_using_direction
             character_using_direction = inspector.character_using_direction
-            print("###################################")
-            print(inspector.characters)
-            print("index : ", inspector.character_using_index)
-            print("direction : ", inspector.character_using_direction)
 
         elif question["question type"] == "select position":
-            print(data)
-            print("###################################")
             response_index = data.index(character_using_direction)
 
         else:
