@@ -259,10 +259,11 @@ def save_solution(game_state, predictions, solutions, color, power_action):
     solution = copy.deepcopy(solutions)
     solution.append({"depth": depth, "data": data, "score": calculate_score(game_state)})
 
-    if depth > 0:
-        predict_turn(game_state, predictions, solution)
-    else:
-        predictions.append(solution)
+    # if depth > 0:
+    #     predict_turn(game_state, predictions, solution)
+    # else:
+    #     predictions.append(solution)
+    predictions.append(solution)
 
 
 def basic_turn(game_state, character, predictions, solutions, power):
@@ -393,7 +394,7 @@ def brown_turn(game_state, character, predictions, solutions):
 def predict_turn(game_state, predictions, solutions):
 
     character_turn = {
-        "pink": pink_turn(),
+        "pink": pink_turn,
         "blue": blue_turn,
         "purple": purple_turn,
         "grey": grey_turn,
