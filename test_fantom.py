@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import socket
+import copy
 from logging.handlers import RotatingFileHandler
 
 import protocol
@@ -182,6 +183,10 @@ def update_character_info(game_state, color, pos, power):
             character["position"] = pos
             character["power"] = power
 
+    return game_state
+
+
+def remove_character_from_active_cards(game_state, color):
     for character in get_active_characters_from_game_state(game_state):
         if character["color"] == color:
             get_active_characters_from_game_state(game_state).remove(character)
@@ -190,7 +195,7 @@ def update_character_info(game_state, color, pos, power):
     return game_state
 
 
-def get_all_positions(new_pos, passages, initial_pos, current_pos, distance, blocked):
+def get_all_possible_positions(new_pos, passages, initial_pos, current_pos, distance, blocked):
     for pos in passages[current_pos]:
         if blocked[0] == current_pos and blocked[1] == pos:
             continue
@@ -198,7 +203,7 @@ def get_all_positions(new_pos, passages, initial_pos, current_pos, distance, blo
             continue
         new_pos.append(pos)
         if distance > 1:
-            get_all_positions(new_pos, passages, initial_pos, pos, distance - 1, blocked)
+            get_all_possible_positions(new_pos, passages, initial_pos, pos, distance - 1, blocked)
 
 
 def get_new_positions(game_state, color, initial_pos, distance):
@@ -211,209 +216,184 @@ def get_new_positions(game_state, color, initial_pos, distance):
                      {7, 8, 4, 6}]
 
     if color == "pink":
-        get_all_positions(new_pos, pink_passages, initial_pos, initial_pos, distance, blocked)
+        get_all_possible_positions(new_pos, pink_passages, initial_pos, initial_pos, distance, blocked)
     else:
-        get_all_positions(new_pos, passages, initial_pos, initial_pos, distance, blocked)
+        get_all_possible_positions(new_pos, passages, initial_pos, initial_pos, distance, blocked)
 
     return new_pos
 
 
-def pink_turn(game_state, character, predictions, solutions):
+def get_all_blocked_possibilities(game_state, blue_pos):
+    blocked = get_blocked_from_game_state(game_state)
+    new_blocked = []
+    passages = [{1, 4}, {0, 2}, {1, 3}, {2, 7}, {0, 5, 8},
+                {4, 6}, {5, 7}, {3, 6, 9}, {4, 9}, {7, 8}]
+
+    for i in range(len(passages)):
+        if i == blue_pos:
+            continue
+        for passage in passages:
+            for dest in passage:
+                if (dest == blue_pos) \
+                        or (blocked[0] == i and blocked[1] == dest) \
+                        or (blocked[0] == dest and blocked[1] == i):
+                    continue
+                if [i, dest] in new_blocked or [dest, i] in new_blocked:
+                    continue
+                new_blocked.append([i, dest])
+
+    return new_blocked
+
+
+def save_solution(game_state, predictions, solutions, color, power_action):
+    depth = len(get_active_characters_from_game_state(game_state))
+    info = get_character_by_color(game_state, color)
+    data = {
+        "color": info["color"],
+        "suspect": info["suspect"],
+        "position": info["position"],
+        "power": info["power"],
+        "power_action": power_action
+    }
+
+    solution = copy.deepcopy(solutions)
+    solution.append({"depth": depth, "data": data, "score": calculate_score(game_state)})
+
+    if depth > 0:
+        predict_turn(game_state, predictions, solution)
+    else:
+        predictions.append(solution)
+
+
+def basic_turn(game_state, character, predictions, solutions, power):
     color = character["color"]
     initial_pos = character["position"]
     distance = len(get_characters_by_position(game_state, initial_pos))
-    depth = len(get_active_characters_from_game_state(game_state)) - 1
 
     for pos in get_new_positions(game_state, color, initial_pos, distance):
-        solution = solutions.copy()
-        new_game_state = update_character_info(game_state.copy(), color, pos, False)
-        info = get_character_by_color(new_game_state, color).copy()
-        data = {
-            "color": info["color"],
-            "suspect": info["suspect"],
-            "position": info["position"],
-            "power": info["power"],
-            "power_action": 0
-        }
-        solution.append({"depth": depth, "data": data, "score": calculate_score(new_game_state)})
-        if depth > 0:
-            predict_turn(new_game_state, predictions, solution)
-        else:
-            predictions.append(solution)
+        new_gs = copy.deepcopy(game_state)
+        new_gs = update_character_info(new_gs, color, pos, power)
+        new_gs = remove_character_from_active_cards(new_gs, color)
+        save_solution(new_gs, predictions, solutions, color, 0)
+
+
+def pink_turn(game_state, character, predictions, solutions):
+    basic_turn(game_state, character, predictions, solutions, False)
 
 
 def blue_turn(game_state, character, predictions, solutions):
     color = character["color"]
     initial_pos = character["position"]
     distance = len(get_characters_by_position(game_state, initial_pos))
-    depth = len(get_active_characters_from_game_state(game_state)) - 1
 
     for pos in get_new_positions(game_state, color, initial_pos, distance):
-        solution = solutions.copy()
-        new_game_state = update_character_info(game_state.copy(), color, pos, False)
-        info = get_character_by_color(new_game_state, color).copy()
-        data = {
-            "color": info["color"],
-            "suspect": info["suspect"],
-            "position": info["position"],
-            "power": info["power"],
-            "power_action": 0
-        }
-        solution.append({"depth": depth, "data": data, "score": calculate_score(new_game_state)})
-        if depth > 0:
-            predict_turn(new_game_state, predictions, solution)
-        else:
-            predictions.append(solution)
+        tmp_gs = copy.deepcopy(game_state)
+        tmp_gs = update_character_info(tmp_gs, color, pos, True)
+        tmp_gs = remove_character_from_active_cards(tmp_gs, color)
+        for passage in get_all_blocked_possibilities(tmp_gs, pos):
+            new_gs = copy.deepcopy(tmp_gs)
+            new_gs["blocked"] = passage
+            save_solution(new_gs, predictions, solutions, color, passage)
 
 
 def purple_turn(game_state, character, predictions, solutions):
     color = character["color"]
-    initial_pos = character["position"]
-    distance = len(get_characters_by_position(game_state, initial_pos))
-    depth = len(get_active_characters_from_game_state(game_state)) - 1
 
-    for pos in get_new_positions(game_state, color, initial_pos, distance):
-        solution = solutions.copy()
-        new_game_state = update_character_info(game_state.copy(), color, pos, False)
-        info = get_character_by_color(new_game_state, color).copy()
-        data = {
-            "color": info["color"],
-            "suspect": info["suspect"],
-            "position": info["position"],
-            "power": info["power"],
-            "power_action": 0
-        }
-        solution.append({"depth": depth, "data": data, "score": calculate_score(new_game_state)})
-        if depth > 0:
-            predict_turn(new_game_state, predictions, solution)
-        else:
-            predictions.append(solution)
+    basic_turn(game_state, character, predictions, solutions, False)
+
+    for target in get_characters_from_game_state(game_state):
+        tmp_pos = target["position"]
+        if target["color"] == color or tmp_pos == character["position"]:
+            continue
+        new_gs = copy.deepcopy(game_state)
+        new_gs = update_character_info(new_gs, target["color"], character["position"], target["power"])
+        new_gs = update_character_info(new_gs, color, tmp_pos, True)
+        new_gs = remove_character_from_active_cards(new_gs, color)
+        save_solution(new_gs, predictions, solutions, color, target["color"])
 
 
 def grey_turn(game_state, character, predictions, solutions):
     color = character["color"]
     initial_pos = character["position"]
     distance = len(get_characters_by_position(game_state, initial_pos))
-    depth = len(get_active_characters_from_game_state(game_state)) - 1
 
     for pos in get_new_positions(game_state, color, initial_pos, distance):
-        solution = solutions.copy()
-        new_game_state = update_character_info(game_state.copy(), color, pos, False)
-        info = get_character_by_color(new_game_state, color).copy()
-        data = {
-            "color": info["color"],
-            "suspect": info["suspect"],
-            "position": info["position"],
-            "power": info["power"],
-            "power_action": 0
-        }
-        solution.append({"depth": depth, "data": data, "score": calculate_score(new_game_state)})
-        if depth > 0:
-            predict_turn(new_game_state, predictions, solution)
-        else:
-            predictions.append(solution)
+        tmp_gs = copy.deepcopy(game_state)
+        tmp_gs = update_character_info(tmp_gs, color, pos, True)
+        tmp_gs = remove_character_from_active_cards(tmp_gs, color)
+        for shadow_pos in range(10):
+            if shadow_pos == get_shadow_from_game_state(tmp_gs):
+                continue
+            new_gs = copy.deepcopy(tmp_gs)
+            new_gs["shadow"] = shadow_pos
+            save_solution(new_gs, predictions, solutions, color, get_shadow_from_game_state(new_gs))
 
 
 def white_turn(game_state, character, predictions, solutions):
     color = character["color"]
     initial_pos = character["position"]
     distance = len(get_characters_by_position(game_state, initial_pos))
-    depth = len(get_active_characters_from_game_state(game_state)) - 1
 
     for pos in get_new_positions(game_state, color, initial_pos, distance):
-        solution = solutions.copy()
-        new_game_state = update_character_info(game_state.copy(), color, pos, False)
-        info = get_character_by_color(new_game_state, color).copy()
-        data = {
-            "color": info["color"],
-            "suspect": info["suspect"],
-            "position": info["position"],
-            "power": info["power"],
-            "power_action": 0
-        }
-        solution.append({"depth": depth, "data": data, "score": calculate_score(new_game_state)})
-        if depth > 0:
-            predict_turn(new_game_state, predictions, solution)
-        else:
-            predictions.append(solution)
+        new_gs = copy.deepcopy(game_state)
+        new_gs = update_character_info(new_gs, color, pos, False)
+        new_gs = remove_character_from_active_cards(new_gs, color)
+        save_solution(new_gs, predictions, solutions, color, 0)
+
+
+def black_power_attracting_neighbours(game_state, pos):
+    passages = [{1, 4}, {0, 2}, {1, 3}, {2, 7}, {0, 5, 8},
+                {4, 6}, {5, 7}, {3, 6, 9}, {4, 9}, {7, 8}]
+
+    blocked = get_blocked_from_game_state(game_state)
+
+    for neighbour in passages[pos]:
+        if (neighbour == blocked[0] and pos == blocked[1]) or (neighbour == blocked[1] and pos == blocked[0]):
+            continue
+        for character in get_characters_by_position(game_state, neighbour):
+            game_state = update_character_info(game_state, character["color"], pos, character["power"])
+
+    return game_state
 
 
 def black_turn(game_state, character, predictions, solutions):
     color = character["color"]
     initial_pos = character["position"]
     distance = len(get_characters_by_position(game_state, initial_pos))
-    depth = len(get_active_characters_from_game_state(game_state)) - 1
 
     for pos in get_new_positions(game_state, color, initial_pos, distance):
-        solution = solutions.copy()
-        new_game_state = update_character_info(game_state.copy(), color, pos, False)
-        info = get_character_by_color(new_game_state, color).copy()
-        data = {
-            "color": info["color"],
-            "suspect": info["suspect"],
-            "position": info["position"],
-            "power": info["power"],
-            "power_action": 0
-        }
-        solution.append({"depth": depth, "data": data, "score": calculate_score(new_game_state)})
-        if depth > 0:
-            predict_turn(new_game_state, predictions, solution)
-        else:
-            predictions.append(solution)
+        for power in range(2):
+            new_gs = copy.deepcopy(game_state)
+            if power == 0:
+                new_gs = update_character_info(new_gs, color, pos, False)
+            else:
+                new_gs = update_character_info(new_gs, color, pos, True)
+                new_gs = black_power_attracting_neighbours(new_gs, pos)
+            new_gs = remove_character_from_active_cards(new_gs, color)
+
+            save_solution(new_gs, predictions, solutions, color, 0)
 
 
 def red_turn(game_state, character, predictions, solutions):
-    color = character["color"]
-    initial_pos = character["position"]
-    distance = len(get_characters_by_position(game_state, initial_pos))
-    depth = len(get_active_characters_from_game_state(game_state)) - 1
-
-    for pos in get_new_positions(game_state, color, initial_pos, distance):
-        solution = solutions.copy()
-        new_game_state = update_character_info(game_state.copy(), color, pos, True)
-        info = get_character_by_color(new_game_state, color).copy()
-        data = {
-            "color": info["color"],
-            "suspect": info["suspect"],
-            "position": info["position"],
-            "power": info["power"],
-            "power_action": 0
-        }
-        solution.append({"depth": depth, "data": data, "score": calculate_score(new_game_state)})
-        if depth > 0:
-            predict_turn(new_game_state, predictions, solution)
-        else:
-            predictions.append(solution)
+    basic_turn(game_state, character, predictions, solutions, True)
 
 
 def brown_turn(game_state, character, predictions, solutions):
     color = character["color"]
     initial_pos = character["position"]
     distance = len(get_characters_by_position(game_state, initial_pos))
-    depth = len(get_active_characters_from_game_state(game_state)) - 1
 
     for pos in get_new_positions(game_state, color, initial_pos, distance):
-        solution = solutions.copy()
-        new_game_state = update_character_info(game_state.copy(), color, pos, False)
-        info = get_character_by_color(new_game_state, color).copy()
-        data = {
-            "color": info["color"],
-            "suspect": info["suspect"],
-            "position": info["position"],
-            "power": info["power"],
-            "power_action": 0
-        }
-        solution.append({"depth": depth, "data": data, "score": calculate_score(new_game_state)})
-        if depth > 0:
-            predict_turn(new_game_state, predictions, solution)
-        else:
-            predictions.append(solution)
+        new_gs = copy.deepcopy(game_state)
+        new_gs = update_character_info(new_gs, color, pos, False)
+        new_gs = remove_character_from_active_cards(new_gs, color)
+        save_solution(new_gs, predictions, solutions, color, 0)
 
 
 def predict_turn(game_state, predictions, solutions):
 
     character_turn = {
-        "pink": pink_turn,
+        "pink": pink_turn(),
         "blue": blue_turn,
         "purple": purple_turn,
         "grey": grey_turn,
@@ -432,8 +412,9 @@ def play_turn(game_state, turn_answer):
 
     predict_turn(game_state, predictions, [])
 
-    for pred in predictions:
-        print(pred)
+    print("Size:", len(predictions))
+    # for pred in predictions:
+    #     print(pred)
 
     # TODO select best score
     # answer = best answer from list
