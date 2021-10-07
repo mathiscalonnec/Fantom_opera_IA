@@ -1,6 +1,8 @@
 """
     game data
 """
+from enum import Enum
+
 # determines whether the power of the character is used before
 # or after moving
 permanents = {"pink"}
@@ -31,3 +33,8 @@ pink_passages = [{1, 4}, {0, 2, 5, 7}, {1, 3, 6}, {2, 7}, {0, 5, 8, 9},
                  {7, 8, 4, 6}]
 
 mandatory_powers = ["red", "blue", "grey"]
+
+
+class PlayerType(Enum):
+    MIN = "inspector",
+    MAX = "fantom"

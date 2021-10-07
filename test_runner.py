@@ -8,8 +8,10 @@ import os
 from datetime import datetime
 from typing import TextIO
 
+# TODO: put average carlotta pos at the end of the game
+# TODO: average response time
 
-nb_of_games_to_be_played = 10
+nb_of_games_to_be_played = 100
 
 server_file = "./server.py"
 inspector_file = "./random_inspector.py"

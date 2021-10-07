@@ -13,7 +13,7 @@ def get_blocked_from_game_state(game_state):
     return game_state["blocked"]
 
 
-def get_fantom_from_game_state(game_state):
+def get_fantom_from_game_state(game_state) -> list:
     return game_state["fantom"]
 
 
@@ -40,7 +40,8 @@ def get_blocked_characters_from_game_state(game_state):
 
 def get_character_by_color(game_state, color):
     target = {}
-    for character in get_characters_from_game_state(game_state):
+    characters = get_characters_from_game_state(game_state)
+    for character in characters:
         if character["color"] == color:
             target = character
             break
@@ -64,7 +65,7 @@ def get_adjacent_positions_from_position(position, charact, game_state):
         return [room for room in active_passages[position] if set([room, position]) != set(get_blocked_characters_from_game_state(game_state))]
 
 
-def is_character_alone(game_state, color):
+def is_character_alone(game_state, color) -> bool:
     character = get_character_by_color(game_state, color)
     nb = len(get_characters_by_position(game_state, character["position"]))
 
@@ -75,6 +76,22 @@ def is_character_in_shadow(game_state, color):
     character = get_character_by_color(game_state, color)
 
     return character["position"] == get_shadow_from_game_state(game_state)
+
+
+def update_list_with_character(character, c_list: list) -> list:
+    character_index = next(i for i in range(len(c_list)) if c_list[i]["color"] == character["color"])
+    c_list[character_index] = character
+    
+    return c_list
+
+
+def update_game_state_with_characters(characters: list, game_state):
+    updated_characters = get_characters_from_game_state(game_state)
+    for c in characters:
+        updated_characters = update_list_with_character(c, updated_characters)
+    game_state["characters"] = updated_characters
+
+    return game_state
 
 
 def calculate_score(game_state):
