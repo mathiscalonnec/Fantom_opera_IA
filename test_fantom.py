@@ -32,24 +32,15 @@ stream_handler.setLevel(logging.WARNING)
 fantom_logger.addHandler(stream_handler)
 
 
-def print_game_info(data, game_state):
-    print("\nDATA -----\n")
-    print(data)
-    print("-----\n")
-    print("GAME State -----\n")
-    print(game_state)
-    print("-----\n")
-
-
 def get_passages():
     return [{1, 4}, {0, 2}, {1, 3}, {2, 7}, {0, 5, 8},
-     {4, 6}, {5, 7}, {3, 6, 9}, {4, 9}, {7, 8}]
+            {4, 6}, {5, 7}, {3, 6, 9}, {4, 9}, {7, 8}]
 
 
 def get_pink_passages():
     return [{1, 4}, {0, 2, 5, 7}, {1, 3, 6}, {2, 7}, {0, 5, 8, 9},
-     {4, 6, 1, 8}, {5, 7, 2, 9}, {3, 6, 9, 1}, {4, 9, 5},
-     {7, 8, 4, 6}]
+            {4, 6, 1, 8}, {5, 7, 2, 9}, {3, 6, 9, 1}, {4, 9, 5},
+            {7, 8, 4, 6}]
 
 
 def get_current_score_from_game_state(game_state):
@@ -459,29 +450,10 @@ def find_max_and_reduce_predictions(predictions, depth):
     return new_pred
 
 
-def find_min_and_reduce_predictions(predictions, depth):
-    new_pred = []
-    min_score = 100
-
-    for pred in predictions:
-        if pred[depth]["score"] < min_score:
-            min_score = pred[depth]["score"]
-
-    for pred in predictions:
-        if pred[depth]["score"] == min_score:
-            new_pred.append(pred)
-
-    return new_pred
-
-
 def play_turn(game_state, turn_answer):
     predictions = []
-
     predict_turn(game_state, predictions, [])
-
-    print("Final Pred Size:", len(predictions))
     depth = len(predictions[0])
-    print("depth:", depth)
 
     while depth > 0:
         depth -= 1
@@ -499,9 +471,6 @@ def play_turn(game_state, turn_answer):
 
 def get_answer(question, data, game_state, turn_answer):
     response_index = 0
-
-    print("question type")
-    print(question["question type"])
 
     if question["question type"] == "select character":
         turn_answer = play_turn(game_state, turn_answer)
@@ -548,9 +517,7 @@ class Player():
         data = question["data"]
         game_state = question["game state"]
 
-        print_game_info(data, game_state)
         response_index = get_answer(question, data, game_state, turn_answer)
-        print("turn answer:", turn_answer, response_index)
 
         # log
         fantom_logger.debug("|\n|")
