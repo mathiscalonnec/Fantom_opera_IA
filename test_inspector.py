@@ -55,10 +55,6 @@ def get_blocked_from_game_state(game_state):
     return game_state["blocked"]
 
 
-def get_fantom_from_game_state(game_state):
-    return game_state["fantom"]
-
-
 def get_characters_from_game_state(game_state):
     return game_state["characters"]
 
@@ -111,61 +107,26 @@ def is_character_in_shadow(game_state, color):
 
 
 def calculate_score(game_state):
-    score = get_current_score_from_game_state(game_state)
-    fantom = get_character_by_color(game_state, get_fantom_from_game_state(game_state))
+    score_alone = get_current_score_from_game_state(game_state)
+    score_group = get_current_score_from_game_state(game_state)
     suspects = get_suspects_from_game_state(game_state)
-    fantom_is_alone = is_character_alone(game_state, fantom["color"])
 
-    if fantom["position"] == get_shadow_from_game_state(game_state) or fantom_is_alone:
-        # Fantom is alone or in the shadow / The Fantom shouts (score +1)
-        score += 1
-        for suspect in suspects:
-            if is_character_alone(game_state, suspect["color"]):
-                # Suspect alone (score +1)
-                score += 1
-                continue
-            if is_character_in_shadow(game_state, suspect["color"]):
-                # Suspect in the shadow (score +1)
-                score += 1
-    else:
-        # Fantom in a group
-        for suspect in suspects:
-            if not is_character_alone(game_state, suspect["color"]) \
-                    and not is_character_in_shadow(game_state, suspect["color"]):
-                # Suspect is not alone and not in the shadow / in a group (score +1)
-                score += 1
+    for suspect in suspects:
+        if is_character_alone(game_state, suspect["color"]):
+            # Suspect alone (score +1)
+            score_alone += 1
+            continue
+        if is_character_in_shadow(game_state, suspect["color"]):
+            # Suspect in the shadow (score +1)
+            score_alone += 1
 
-    return score
+    for suspect in suspects:
+        if not is_character_alone(game_state, suspect["color"]) \
+                and not is_character_in_shadow(game_state, suspect["color"]):
+            # Suspect is not alone and not in the shadow / in a group (score +1)
+            score_group += 1
 
-
-def update_game_state_suspects(game_state):
-    fantom = get_character_by_color(game_state, get_fantom_from_game_state(game_state))
-    suspects = get_suspects_from_game_state(game_state)
-    fantom_is_alone = is_character_alone(game_state, fantom["color"])
-
-    if fantom["position"] == get_shadow_from_game_state(game_state) or fantom_is_alone:
-        for suspect in suspects:
-            if not is_character_alone(game_state, suspect["color"]) \
-                    and not is_character_in_shadow(game_state, suspect["color"]):
-                for character in get_characters_from_game_state(game_state):
-                    if suspect["color"] == character["color"]:
-                        character["suspect"] = False
-                        break
-    else:
-        for suspect in suspects:
-            if is_character_alone(game_state, suspect["color"]):
-                for character in get_characters_from_game_state(game_state):
-                    if suspect["color"] == character["color"]:
-                        character["suspect"] = False
-                        break
-                continue
-            if is_character_in_shadow(game_state, suspect["color"]):
-                for character in get_characters_from_game_state(game_state):
-                    if suspect["color"] == character["color"]:
-                        character["suspect"] = False
-                        break
-
-    return game_state
+    return score_alone if score_alone >= score_group else score_group
 
 
 def update_character_info(game_state, color, pos, power):
@@ -471,6 +432,8 @@ def play_turn(game_state, turn_answer):
 
 def get_answer(question, data, game_state, turn_answer):
     response_index = 0
+
+    print(game_state, "\n")
 
     if question["question type"] == "select character":
         turn_answer = play_turn(game_state, turn_answer)

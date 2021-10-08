@@ -138,36 +138,6 @@ def calculate_score(game_state):
     return score
 
 
-def update_game_state_suspects(game_state):
-    fantom = get_character_by_color(game_state, get_fantom_from_game_state(game_state))
-    suspects = get_suspects_from_game_state(game_state)
-    fantom_is_alone = is_character_alone(game_state, fantom["color"])
-
-    if fantom["position"] == get_shadow_from_game_state(game_state) or fantom_is_alone:
-        for suspect in suspects:
-            if not is_character_alone(game_state, suspect["color"]) \
-                    and not is_character_in_shadow(game_state, suspect["color"]):
-                for character in get_characters_from_game_state(game_state):
-                    if suspect["color"] == character["color"]:
-                        character["suspect"] = False
-                        break
-    else:
-        for suspect in suspects:
-            if is_character_alone(game_state, suspect["color"]):
-                for character in get_characters_from_game_state(game_state):
-                    if suspect["color"] == character["color"]:
-                        character["suspect"] = False
-                        break
-                continue
-            if is_character_in_shadow(game_state, suspect["color"]):
-                for character in get_characters_from_game_state(game_state):
-                    if suspect["color"] == character["color"]:
-                        character["suspect"] = False
-                        break
-
-    return game_state
-
-
 def update_character_info(game_state, color, pos, power):
     for character in get_characters_from_game_state(game_state):
         if character["color"] == color:
