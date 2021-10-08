@@ -415,6 +415,17 @@ def brown_turn(game_state, character, predictions, solutions):
         new_gs = remove_character_from_active_cards(new_gs, color)
         save_solution(new_gs, predictions, solutions, color, 0)
 
+    if not is_character_alone(game_state, color):
+        for target in get_characters_by_position(game_state, initial_pos):
+            if target["color"] == color:
+                continue
+            for pos in get_new_positions(game_state, color, initial_pos, distance):
+                new_gs = copy.deepcopy(game_state)
+                new_gs = update_character_info(new_gs, color, pos, True)
+                new_gs = update_character_info(new_gs, target["color"], pos, target["power"])
+                new_gs = remove_character_from_active_cards(new_gs, color)
+                save_solution(new_gs, predictions, solutions, color, target["color"])
+
 
 def predict_turn(game_state, predictions, solutions):
 
