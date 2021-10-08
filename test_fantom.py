@@ -41,6 +41,17 @@ def print_game_info(data, game_state):
     print("-----\n")
 
 
+def get_passages():
+    return [{1, 4}, {0, 2}, {1, 3}, {2, 7}, {0, 5, 8},
+     {4, 6}, {5, 7}, {3, 6, 9}, {4, 9}, {7, 8}]
+
+
+def get_pink_passages():
+    return [{1, 4}, {0, 2, 5, 7}, {1, 3, 6}, {2, 7}, {0, 5, 8, 9},
+     {4, 6, 1, 8}, {5, 7, 2, 9}, {3, 6, 9, 1}, {4, 9, 5},
+     {7, 8, 4, 6}]
+
+
 def get_current_score_from_game_state(game_state):
     return game_state["position_carlotta"]
 
@@ -204,11 +215,8 @@ def get_all_possible_positions(new_pos, passages, initial_pos, current_pos, dist
 def get_new_positions(game_state, color, initial_pos, distance):
     new_pos = []
     blocked = get_blocked_from_game_state(game_state)
-    passages = [{1, 4}, {0, 2}, {1, 3}, {2, 7}, {0, 5, 8},
-                {4, 6}, {5, 7}, {3, 6, 9}, {4, 9}, {7, 8}]
-    pink_passages = [{1, 4}, {0, 2, 5, 7}, {1, 3, 6}, {2, 7}, {0, 5, 8, 9},
-                     {4, 6, 1, 8}, {5, 7, 2, 9}, {3, 6, 9, 1}, {4, 9, 5},
-                     {7, 8, 4, 6}]
+    passages = get_passages()
+    pink_passages = get_pink_passages()
 
     if color == "pink":
         get_all_possible_positions(new_pos, pink_passages, initial_pos, initial_pos, distance, blocked)
@@ -221,8 +229,7 @@ def get_new_positions(game_state, color, initial_pos, distance):
 def get_all_blocked_possibilities(game_state, blue_pos):
     blocked = get_blocked_from_game_state(game_state)
     new_blocked = []
-    passages = [{1, 4}, {0, 2}, {1, 3}, {2, 7}, {0, 5, 8},
-                {4, 6}, {5, 7}, {3, 6, 9}, {4, 9}, {7, 8}]
+    passages = get_passages()
 
     for i in range(len(passages)):
         if i == blue_pos:
@@ -323,6 +330,27 @@ def grey_turn(game_state, character, predictions, solutions):
             save_solution(new_gs, predictions, solutions, color, get_shadow_from_game_state(new_gs))
 
 
+def white_power(game_state, predictions, solutions, color, pos):
+    passages = get_passages()
+    valid_passages = []
+    blocked = get_blocked_from_game_state(game_state)
+
+    for passage in passages[pos]:
+        if (passage == blocked[0] and blocked[1] == pos) or (passage == blocked[1] and blocked[0] == pos):
+            continue
+        valid_passages.append(passage)
+
+    for passage in valid_passages:
+        power_action = []
+        new_gs = copy.deepcopy(game_state)
+        for character in get_characters_by_position(game_state, pos):
+            if character["color"] == color:
+                continue
+            new_gs = update_character_info(new_gs, character["color"], passage, character["power"])
+            power_action.append([character["color"], passage])
+        save_solution(new_gs, predictions, solutions, color, power_action)
+
+
 def white_turn(game_state, character, predictions, solutions):
     color = character["color"]
     initial_pos = character["position"]
@@ -330,15 +358,19 @@ def white_turn(game_state, character, predictions, solutions):
 
     for pos in get_new_positions(game_state, color, initial_pos, distance):
         new_gs = copy.deepcopy(game_state)
-        new_gs = update_character_info(new_gs, color, pos, False)
         new_gs = remove_character_from_active_cards(new_gs, color)
-        save_solution(new_gs, predictions, solutions, color, 0)
+        new_gs = update_character_info(new_gs, color, pos, False)
+
+        if is_character_alone(new_gs, color):
+            save_solution(new_gs, predictions, solutions, color, 0)
+            continue
+
+        new_gs = update_character_info(new_gs, color, pos, True)
+        white_power(new_gs, predictions, solutions, color, pos)
 
 
 def black_power_attracting_neighbours(game_state, pos):
-    passages = [{1, 4}, {0, 2}, {1, 3}, {2, 7}, {0, 5, 8},
-                {4, 6}, {5, 7}, {3, 6, 9}, {4, 9}, {7, 8}]
-
+    passages = get_passages()
     blocked = get_blocked_from_game_state(game_state)
 
     for neighbour in passages[pos]:
@@ -457,6 +489,9 @@ def play_turn(game_state, turn_answer):
 def get_answer(question, data, game_state, turn_answer):
     response_index = 0
 
+    print("question type")
+    print(question["question type"])
+
     if question["question type"] == "select character":
         turn_answer = play_turn(game_state, turn_answer)
         for character in data:
@@ -471,6 +506,12 @@ def get_answer(question, data, game_state, turn_answer):
         response_index = data.index(turn_answer["power_action"][0])
     elif question["question type"] == "blue character power exit":
         response_index = data.index(turn_answer["power_action"][1])
+    elif question["question type"].startswith("white character power move "):
+        color = question["question type"].replace("white character power move ", "")
+        for power_action in turn_answer["power_action"]:
+            if power_action[0] == color:
+                response_index = data.index(power_action[1])
+                break
     else:
         response_index = data.index(turn_answer["power_action"])
 
