@@ -33,17 +33,11 @@ fantom_logger.addHandler(stream_handler)
 
 
 def print_game_info(data, game_state):
-    print("DATA -----\n")
+    print("\nDATA -----\n")
     print(data)
     print("-----\n")
     print("GAME State -----\n")
     print(game_state)
-    print("-----\n")
-    print("Score at current Game_State -----\n")
-    print(calculate_score(game_state))
-    print("-----\n")
-    print("Update Game_State Suspects -----\n")
-    print(get_suspects_from_game_state(update_game_state_suspects(game_state)))
     print("-----\n")
 
 
@@ -197,7 +191,8 @@ def remove_character_from_active_cards(game_state, color):
 
 def get_all_possible_positions(new_pos, passages, initial_pos, current_pos, distance, blocked):
     for pos in passages[current_pos]:
-        if blocked[0] == current_pos and blocked[1] == pos:
+        if (blocked[0] == current_pos and blocked[1] == pos) \
+                or (blocked[0] == pos and blocked[1] == current_pos):
             continue
         if pos in new_pos or pos == initial_pos:
             continue
@@ -232,15 +227,14 @@ def get_all_blocked_possibilities(game_state, blue_pos):
     for i in range(len(passages)):
         if i == blue_pos:
             continue
-        for passage in passages:
-            for dest in passage:
-                if (dest == blue_pos) \
-                        or (blocked[0] == i and blocked[1] == dest) \
-                        or (blocked[0] == dest and blocked[1] == i):
-                    continue
-                if [i, dest] in new_blocked or [dest, i] in new_blocked:
-                    continue
-                new_blocked.append([i, dest])
+        for dest in passages[i]:
+            if (dest == blue_pos) \
+                    or (blocked[0] == i and blocked[1] == dest) \
+                    or (blocked[0] == dest and blocked[1] == i):
+                continue
+            if [i, dest] in new_blocked or [dest, i] in new_blocked:
+                continue
+            new_blocked.append([i, dest])
 
     return new_blocked
 
@@ -259,11 +253,10 @@ def save_solution(game_state, predictions, solutions, color, power_action):
     solution = copy.deepcopy(solutions)
     solution.append({"depth": depth, "data": data, "score": calculate_score(game_state)})
 
-    # if depth > 0:
-    #     predict_turn(game_state, predictions, solution)
-    # else:
-    #     predictions.append(solution)
-    predictions.append(solution)
+    if depth == 2:
+        predict_turn(game_state, predictions, solution)
+    else:
+        predictions.append(solution)
 
 
 def basic_turn(game_state, character, predictions, solutions, power):
@@ -408,23 +401,80 @@ def predict_turn(game_state, predictions, solutions):
         character_turn[character["color"]](game_state, character, predictions, solutions)
 
 
+def find_max_and_reduce_predictions(predictions, depth):
+    new_pred = []
+    max_score = 0
+
+    for pred in predictions:
+        if pred[depth]["score"] > max_score:
+            max_score = pred[depth]["score"]
+
+    for pred in predictions:
+        if pred[depth]["score"] == max_score:
+            new_pred.append(pred)
+
+    return new_pred
+
+
+def find_min_and_reduce_predictions(predictions, depth):
+    new_pred = []
+    min_score = 100
+
+    for pred in predictions:
+        if pred[depth]["score"] < min_score:
+            min_score = pred[depth]["score"]
+
+    for pred in predictions:
+        if pred[depth]["score"] == min_score:
+            new_pred.append(pred)
+
+    return new_pred
+
+
 def play_turn(game_state, turn_answer):
     predictions = []
 
     predict_turn(game_state, predictions, [])
 
-    print("Size:", len(predictions))
-    # for pred in predictions:
-    #     print(pred)
+    print("Final Pred Size:", len(predictions))
+    depth = len(predictions[0])
+    print("depth:", depth)
 
-    # TODO select best score
-    # answer = best answer from list
-    # turn_answer["color"] = ...
-    # turn_answer["position"] = ...
-    # turn_answer["power"] = ...
-    # turn_answer["power_action"] = ...
+    while depth > 0:
+        depth -= 1
+        predictions = find_max_and_reduce_predictions(predictions, depth)
+
+    index = random.randint(0, len(predictions) - 1)
+
+    turn_answer["color"] = predictions[index][0]["data"]["color"]
+    turn_answer["position"] = predictions[index][0]["data"]["position"]
+    turn_answer["power"] = predictions[index][0]["data"]["power"]
+    turn_answer["power_action"] = predictions[index][0]["data"]["power_action"]
 
     return turn_answer
+
+
+def get_answer(question, data, game_state, turn_answer):
+    response_index = 0
+
+    if question["question type"] == "select character":
+        turn_answer = play_turn(game_state, turn_answer)
+        for character in data:
+            if character["color"] == turn_answer["color"]:
+                response_index = data.index(character)
+                break
+    elif question["question type"] == "select position":
+        response_index = data.index(turn_answer["position"])
+    elif question["question type"] == "activate " + turn_answer["color"] + " power":
+        response_index = 1 if turn_answer["power"] else 0
+    elif question["question type"] == "blue character power room":
+        response_index = data.index(turn_answer["power_action"][0])
+    elif question["question type"] == "blue character power exit":
+        response_index = data.index(turn_answer["power_action"][1])
+    else:
+        response_index = data.index(turn_answer["power_action"])
+
+    return response_index
 
 
 class Player():
@@ -445,25 +495,11 @@ class Player():
         # work
         data = question["data"]
         game_state = question["game state"]
+
         print_game_info(data, game_state)
-        response_index = 0
+        response_index = get_answer(question, data, game_state, turn_answer)
+        print("turn answer:", turn_answer, response_index)
 
-        if question["question type"] == "select character":
-            turn_answer = play_turn(game_state, turn_answer)
-            turn_answer["color"] = data[random.randint(0, len(data)-1)]["color"]
-            for character in data:
-                if character["color"] == turn_answer["color"]:
-                    response_index = data.index(character)
-                    break
-        elif question["question type"] == "select position":
-            turn_answer["position"] = data[random.randint(0, len(data)-1)]
-            response_index = data.index(turn_answer["position"])
-        else:
-            # TODO Need to add specific question for power
-            response_index = 1 if turn_answer["power"] else 0
-
-        print(turn_answer, response_index)
-        response_index = random.randint(0, len(data)-1)
         # log
         fantom_logger.debug("|\n|")
         fantom_logger.debug("fantom answers")
