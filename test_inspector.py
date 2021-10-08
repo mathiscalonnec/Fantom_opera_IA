@@ -433,8 +433,6 @@ def play_turn(game_state, turn_answer):
 def get_answer(question, data, game_state, turn_answer):
     response_index = 0
 
-    print(game_state, "\n")
-
     if question["question type"] == "select character":
         turn_answer = play_turn(game_state, turn_answer)
         for character in data:
