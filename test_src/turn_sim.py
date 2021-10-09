@@ -81,24 +81,25 @@ def activate_power_before(node: Node, depth: int, character):
 
 
 
-# TODO: maybe problem with character being chosen
-def select(node: Node, depth: int) -> list:
+def select(node: Node, depth: int, player_type: PlayerType) -> list:
     final_nodes: list(Node) = []
     game_state = node.game_state
     available_characters = game.get_active_characters_from_game_state(game_state)
+    print('possible actions: ', available_characters)
     for player_choice in range(len(available_characters)):
         character = deepcopy(available_characters[player_choice])
         new_state = deepcopy(game_state)
         del new_state["active character_cards"][player_choice]
-        new_node = node.create_child(new_state, player_choice, depth + 1, node.type)
+        new_node = node.create_child(new_state, player_choice, depth, player_type)
+        print("select action: ", new_node.action)
         if character["color"] in before:
-            final_nodes += activate_power_before(new_node, depth + 1, character)
+            final_nodes += activate_power_before(new_node, depth, character)
         else:
             final_nodes += move(new_node, depth + 1, character)
 
     return final_nodes
 
 
-def simulate(node: Node, depth: int) -> list:
-    final_nodes = select(node, depth + 1)
+def simulate(node: Node, depth: int, player_type: PlayerType) -> list:
+    final_nodes = select(node, depth + 1, player_type)
     return final_nodes

@@ -8,6 +8,7 @@ class Node:
     depth: int
     value: int
     character: str
+    type: PlayerType
 
     def __init__(self, action, depth, value, game_state, type: PlayerType, prev=None):
         self.parent = prev

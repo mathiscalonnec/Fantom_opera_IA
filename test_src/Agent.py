@@ -5,11 +5,10 @@ import test_src.turn_sim as turn_sim
 from test_src.Node import Node
 from test_src import game_utils as game
 from test_src.globals import PlayerType as pt
+from test_src.TreeDisplay import TreeDisplay
 import sys
 import json
 
-# BIG TODO: maybe do a visual representation of tree after being generated -> better debug
-# Beforehand you would need to indicate at which node action that is being executed
 
 class Agent:
     """
@@ -24,6 +23,9 @@ class Agent:
     turns: list
     fantom_turns = list
 
+    # debug
+    viz: TreeDisplay
+
     def __init__(self):
         self.current_node = None
         self.end_nodes = []
@@ -31,7 +33,8 @@ class Agent:
         self.turns = [pt.MIN, pt.MAX, pt.MAX, pt.MIN, pt.MAX, pt.MIN, pt.MIN, pt.MAX]
         self.fantom_turns = [1, 2, 4, 7]
 
-        self.max_depth = 4
+        # debug
+        self.viz = TreeDisplay()
 
 
     def __init_tree(self, game_state, turn: int):
@@ -71,7 +74,7 @@ class Agent:
 
     # TODO: find a way to handle end condition nicely (in case one player wins)
     def __expand(self, node: Node, current_depth: int, turn: int):
-        res_nodes: list(Node) = turn_sim.simulate(node, current_depth)
+        res_nodes: list(Node) = turn_sim.simulate(node, current_depth, self.turns[turn])
         
         if len(res_nodes) == 0 or turn + 1 >= len(self.turns):
             self.end_nodes += res_nodes
@@ -86,40 +89,31 @@ class Agent:
     def __get_next_solution(self, player_type: pt):
         val = 0
         index = 0
-        print("depth: ", self.current_node.depth)
-        print("type: ", self.current_node.type)
         for i in range(len(self.current_node.children)):
-            print("test: ", self.current_node.children[i].value)
             if player_type is pt.MAX and val < self.current_node.children[i].value:
                 val = self.current_node.children[i].value
                 index = i
             elif player_type is pt.MIN and val > self.current_node.children[i].value:
                 val = self.current_node.children[i].value
                 index = i
-        print("VAL : ", val)
         self.current_node = self.current_node.children[index]
         return self.current_node.action
 
 
 
-    # TODO: check -> you get turn 2 times in a row
-    def play(self, question: object) -> int:
-        """
-            Initializing the tree again with the new state every time it's our turn
-        """
+    def play(self, question: object, debug=True) -> int:
+        question_type = question["question type"]
         turn = self.fantom_turns[(question["game state"]["num_tour"] - 1) % len(self.fantom_turns)] 
-        print('---------------------')
-        print("question type: ", question['question type'])
-        print('num_tour: ', question["game state"]["num_tour"])
-        print('- turn: ', turn)
-        if question['question type'] == 'select character':
+        if question_type == 'select character':
             # create or recreate tree, reinitialising sim to current turn
             self.__init_tree(question["game state"], turn)
             self.__expand(self.current_node, 0, turn)
             self.__backpropagate()
 
-        elif "power" in question['question type']:
+        elif "brown" or "purple" not in question_type and "power" in question_type:
             return random.randint(0, len(question["data"]) - 1)
+        if debug and turn == 1:
+            self.viz.create_frame(self.current_node)
 
         return self.__get_next_solution(self.turns[turn])
 
