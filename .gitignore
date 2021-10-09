@@ -142,4 +142,4 @@ dmypy.json
 .pyre/
 
 # logs
-test_logs
+test_results
