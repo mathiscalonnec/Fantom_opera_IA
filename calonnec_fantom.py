@@ -8,6 +8,17 @@ from logging.handlers import RotatingFileHandler
 
 import protocol
 
+
+
+"""
+    Project members:
+    Lucas Marcel
+    Mathis Calonnec
+    Nicolas Bernès
+"""
+
+
+
 host = "localhost"
 port = 12000
 # HEADERSIZE = 10

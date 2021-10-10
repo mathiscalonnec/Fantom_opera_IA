@@ -1,5 +1,10 @@
 # Players for the Intro to AI module
 
+## Project members
+Mathis Calonnec
+Lucas Marcel
+Nicolas Bernès
+
 ## Description of the game
 
 You can find the rules of the game in ./le-fantom-de-l-opera_rules_fr.pdf

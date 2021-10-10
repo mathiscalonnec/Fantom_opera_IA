@@ -17,8 +17,8 @@ import matplotlib.pyplot as plt
 
 # Here specify the files you want the script to launch
 server_file = "./server.py"
-inspector_file = "./random_inspector.py"
-fantom_file = "./test_fantom.py"
+inspector_file = "./calonnec_inspector.py"
+fantom_file = "./calonnec_fantom.py"
 
 # Directory where the results will be written
 logs_dir = "test_results"
