@@ -2,20 +2,16 @@
 
 ## Project members
 Mathis Calonnec
+
 Lucas Marcel
+
 Nicolas Bernès
 
-## Description of the game
+## Inspector agent
+calonnec_inspector.py
 
-You can find the rules of the game in ./le-fantom-de-l-opera_rules_fr.pdf
-
-## To launch a game
-
-1) start the server
-
-2) python3.6 inspector.py
-
-3) python3.6 random.fantom.py
+## Fantom agent
+calonnec_fantom.py
 
 ## To test a player's winrate
 
